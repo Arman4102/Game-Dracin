@@ -1,475 +1,496 @@
-// Dapatkan elemen canvas  
-const canvas = document.getElementById('gameCanvas');  
-const ctx = canvas.getContext('2d');  
+// Dapatkan elemen canvas
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-// Konfigurasi Game  
-const GRAVITASI = 0.5;  
-const KEKUATAN_LOMPAT = -10;  
-const WAKTU_TIDUR = 5000; // 5 detik  
-const GRAVITASI_RINTANGAN = 0.2; // Gravitasi untuk rintangan  
+// Konfigurasi Game
+const GRAVITASI = 0.5;
+const KEKUATAN_LOMPAT = -10;
+const WAKTU_TIDUR = 5000; // 5 detik
+const GRAVITASI_RINTANGAN = 0.2; // Gravitasi untuk rintangan
 
-// Gambar  
-const backgroundImg = new Image();  
-const catMoveImg = new Image();  
-const catSleepImg = new Image();  
-const catStayImg = new Image();  
+// Gambar
+const backgroundImg = new Image();
+const catMoveImg = new Image();
+const catSleepImg = new Image();
+const catStayImg = new Image();
 
-// Tambahkan di bagian global, sebelum inisialisasi pemain  
-let jarakKanan = 0;  
-let jarakKiri = 0;  
+// Tambahkan di bagian global, sebelum inisialisasi pemain
+let jarakKanan = 0;
+let jarakKiri = 0;
 
-// Flag untuk memastikan semua gambar dimuat  
-let semuaGambarDimuat = false;  
+// Flag untuk memastikan semua gambar dimuat
+let semuaGambarDimuat = false;
 
-// Variabel untuk melacak waktu diam  
-let waktuTerakhirBergerak = Date.now();  
-let sedangTidur = false;  
+// Variabel untuk melacak waktu diam
+let waktuTerakhirBergerak = Date.now();
+let sedangTidur = false;
 
-// Background Scrolling  
-let backgroundScroll = 0;  
-const SCROLL_SPEED = 5;  
-let backgroundMirror;  
+// Background Scrolling
+let backgroundScroll = 0;
+const SCROLL_SPEED = 5;
+let backgroundMirror;
 
-// Rintangan   
-let daftarRintangan = [];  
-let jarakTempuh = 0;  
+// Rintangan
+let daftarRintangan = [];
+let jarakTempuh = 0;
 // let rintanganSudahMuncul = false;
-let debugRintangan = {  
-    status: false,  
-    pesan: ""  
-};  
+let debugRintangan = {
+  status: false,
+  pesan: "",
+};
 
-// Tambahkan variabel global untuk mengontrol munculnya rintangan  
-const JARAK_MUNCULKAN_RINTANGAN = 100; // Bisa disesuaikan  
-let jarakSebelumRintangan = 0;  
-let rintanganSudahMuncul = false;  
+// Tambahkan variabel global untuk mengontrol munculnya rintangan
+const JARAK_MUNCULKAN_RINTANGAN = 100; // Bisa disesuaikan
+let jarakSebelumRintangan = 0;
+let rintanganSudahMuncul = false;
 
-// Kelas Rintangan  
+// Tambahkan variabel global untuk melacak jumlah rintangan dan jarak munculnya
+let jumlahRintanganMuncul = 0;
+const JARAK_MUNCULKAN_RINTANGAN_KE_2 = 100; // Jarak untuk rintangan kedua
+
 class Rintangan {  
-    constructor(x, y) {  
+    constructor(x, y, bergerak = false, jatuh = true, sekaliMuncul = false) {  
         this.x = x;  
         this.y = y;  
-        this.radius = 20; // Ukuran bola  
-        this.kecepatanY = 0;  
-        this.jatuh = true; // Langsung jatuh  
+        this.radius = 20;  
+        this.kecepatanX = bergerak ? 2 : 0;  
+        this.kecepatanY = jatuh ? 1.5 : 0;  
+        this.jatuh = jatuh;  
+        this.sekaliMuncul = sekaliMuncul;  
+        this.sudahSampaiAkhir = false;  
     }  
 
     update() {  
-        // Gravitasi untuk jatuh  
+        // Gerakan horizontal jika bergerak  
+        if (this.kecepatanX !== 0) {  
+            this.x += this.kecepatanX;  
+
+            // Jika sekali muncul, berhenti saat mencapai akhir layar  
+            if (this.sekaliMuncul && this.x > canvas.width + this.radius) {  
+                this.sudahSampaiAkhir = true;  
+            }  
+        }  
+
+        // Gerakan vertikal (jatuh)  
         if (this.jatuh) {  
-            this.kecepatanY += GRAVITASI_RINTANGAN;  
             this.y += this.kecepatanY;  
+
+            // Terus jatuh sampai benar-benar keluar canvas  
+            if (this.y > canvas.height + this.radius) {  
+                // Hapus rintangan dari daftar  
+                daftarRintangan = daftarRintangan.filter(r => r !== this);  
+            }  
         }  
     }  
 
     gambar(ctx) {  
-      // Gambar lingkaran dengan warna merah  
         ctx.beginPath();  
         ctx.fillStyle = 'red';  
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);  
         ctx.fill();  
-
-        // Tambahkan kotak pembatas untuk debugging  
-        ctx.strokeStyle = 'green';  
-        ctx.strokeRect(  
-            this.x - this.radius,   
-            this.y - this.radius,   
-            this.radius * 2,   
-            this.radius * 2  
-        );  
     }  
 }  
+  
 
-// Karakter  
-let pemain = {  
-    x: 180,  
-    y: canvas.height - 40,  
-    lebar: 40,  
-    tinggi: 40,  
-    kecepatanX: 0,  
-    kecepatanY: 0,  
-    kecepatan: 1.25,  
-    diTanah: true,  
-    gambar: catStayImg,  
-    menghadapKanan: false  
-};  
+// Karakter
+let pemain = {
+  x: 180,
+  y: canvas.height - 40,
+  lebar: 40,
+  tinggi: 40,
+  kecepatanX: 0,
+  kecepatanY: 0,
+  kecepatan: 1.25,
+  diTanah: true,
+  gambar: catStayImg,
+  menghadapKanan: false,
+};
 
-// Fungsi Muat Gambar  
-function muatGambar() {  
-    backgroundImg.src = 'assets/background_game.png';  
-    catMoveImg.src = 'assets/cat_move.png';  
-    catSleepImg.src = 'assets/cat_sleep.png';  
-    catStayImg.src = 'assets/cat_stay.png';  
+// Fungsi Muat Gambar
+function muatGambar() {
+  backgroundImg.src = "assets/background_game.png";
+  catMoveImg.src = "assets/cat_move.png";
+  catSleepImg.src = "assets/cat_sleep.png";
+  catStayImg.src = "assets/cat_stay.png";
 
-    // Cek apakah semua gambar sudah dimuat  
-    let jumlahGambarDimuat = 0;  
-    const totalGambar = 4;  
+  // Cek apakah semua gambar sudah dimuat
+  let jumlahGambarDimuat = 0;
+  const totalGambar = 4;
 
-    function cekGambarDimuat() {  
-        jumlahGambarDimuat++;  
-        if (jumlahGambarDimuat === totalGambar) {  
-            semuaGambarDimuat = true;  
-            loopPermainan();  
-        }  
-    }  
+  function cekGambarDimuat() {
+    jumlahGambarDimuat++;
+    if (jumlahGambarDimuat === totalGambar) {
+      semuaGambarDimuat = true;
+      loopPermainan();
+    }
+  }
 
-    backgroundImg.onload = cekGambarDimuat;  
-    catMoveImg.onload = cekGambarDimuat;  
-    catSleepImg.onload = cekGambarDimuat;  
-    catStayImg.onload = cekGambarDimuat;  
-}  
+  backgroundImg.onload = cekGambarDimuat;
+  catMoveImg.onload = cekGambarDimuat;
+  catSleepImg.onload = cekGambarDimuat;
+  catStayImg.onload = cekGambarDimuat;
+}
 
-// Buat mirror image  
-function createMirrorImage(image) {  
-    const mirrorCanvas = document.createElement('canvas');  
-    mirrorCanvas.width = image.width;  
-    mirrorCanvas.height = image.height;  
-    const mirrorCtx = mirrorCanvas.getContext('2d');  
+// Buat mirror image
+function createMirrorImage(image) {
+  const mirrorCanvas = document.createElement("canvas");
+  mirrorCanvas.width = image.width;
+  mirrorCanvas.height = image.height;
+  const mirrorCtx = mirrorCanvas.getContext("2d");
 
-    mirrorCtx.scale(-1, 1);  
-    mirrorCtx.drawImage(image, -image.width, 0);  
+  mirrorCtx.scale(-1, 1);
+  mirrorCtx.drawImage(image, -image.width, 0);
 
-    return mirrorCanvas;  
-}  
+  return mirrorCanvas;
+}
 
-// Tambahan Fungsi Rintangan  
 function tambahkanRintangan() {  
-    // Posisi Y di bagian atas layar  
-    let rintanganBaru = new Rintangan(canvas.width / 1.3, 10);  
-    daftarRintangan.push(rintanganBaru);  
+    if (jumlahRintanganMuncul === 0) {  
+        // Rintangan pertama (jatuh)  
+        let rintanganPertama = new Rintangan(canvas.width / 1.3, 10, false, true);  
+        daftarRintangan.push(rintanganPertama);  
+    } else if (jumlahRintanganMuncul === 1) {  
+        // Rintangan kedua (bergerak horizontal sekali, tidak jatuh)  
+        let posisiY = canvas.height - 40; // Sejajar dengan karakter  
+        let rintanganKedua = new Rintangan(-20, posisiY, true, false, true);  
+        daftarRintangan.push(rintanganKedua);  
+    }  
+    jumlahRintanganMuncul++;  
 }  
 
-function updateRintangan() {  
-    // Hapus rintangan yang sudah keluar layar  
-    daftarRintangan = daftarRintangan.filter(rintangan => rintangan.y < canvas.height + 50);  
-    
-    // Update setiap rintangan  
-    daftarRintangan.forEach(rintangan => rintangan.update());  
-}  
+function updateRintangan() {
+  // Hapus rintangan yang sudah keluar layar
+  daftarRintangan = daftarRintangan.filter(
+    (rintangan) => rintangan.y < canvas.height + 50
+  );
 
-function gambarRintangan(ctx) {  
-    daftarRintangan.forEach(rintangan => rintangan.gambar(ctx));  
-}  
+  // Update setiap rintangan
+  daftarRintangan.forEach((rintangan) => rintangan.update());
+}
 
-function cekTabrakan() {  
-     daftarRintangan.forEach(rintangan => {  
-        // Hitung jarak antara pusat karakter dan pusat rintangan  
-        let jarakX = Math.abs(pemain.x + pemain.lebar/2 - rintangan.x);  
-        let jarakY = Math.abs(pemain.y + pemain.tinggi/2 - rintangan.y);  
+function gambarRintangan(ctx) {
+  daftarRintangan.forEach((rintangan) => rintangan.gambar(ctx));
+}
 
-        // Tentukan ukuran area tabrakan  
-        let lebarTabrakan = (pemain.lebar + rintangan.radius * 2) / 2.2;  
-        let tinggiTabrakan = (pemain.tinggi + rintangan.radius * 2) / 2.5;  
+function cekTabrakan() {
+  daftarRintangan.forEach((rintangan) => {
+    // Hitung jarak antara pusat karakter dan pusat rintangan
+    let jarakX = Math.abs(pemain.x + pemain.lebar / 2 - rintangan.x);
+    let jarakY = Math.abs(pemain.y + pemain.tinggi / 2 - rintangan.y);
 
-        // Cek tabrakan  
-        if (  
-            jarakX < lebarTabrakan &&   
-            jarakY < tinggiTabrakan  
-        ) {  
-            gameOver();  
-        }  
-    });  
-}  
+    // Tentukan ukuran area tabrakan
+    let lebarTabrakan = (pemain.lebar + rintangan.radius * 2) / 3;
+    let tinggiTabrakan = (pemain.tinggi + rintangan.radius * 2) / 3;
 
-function gameOver() {  
-      alert('Game Over!');  
-    
-    // Log status rintangan sebelum reset  
-    console.log("Game Over - Rintangan Status Sebelum Reset:", {  
-        jarakTempuh: jarakTempuh,  
-        rintanganMuncul: rintanganSudahMuncul,  
-        jumlahRintangan: daftarRintangan.length  
-    });  
+    // Cek tabrakan
+    if (jarakX < lebarTabrakan && jarakY < tinggiTabrakan) {
+      gameOver();
+    }
+  });
+}
 
-    resetPermainan(); 
-}  
+function gameOver() {
+  alert("Game Over!");
 
-function resetPermainan() {  
-    jarakTempuh = 0;  
-    jarakSebelumRintangan = 0;  
-    jarakKanan = 0;  // Reset jarak kanan  
-    jarakKiri = 0;   // Reset jarak kiri  
-    daftarRintangan = [];  
-    rintanganSudahMuncul = false;  
-    
-    pemain.x = 180;  
-    pemain.y = canvas.height - 40;  
-} 
+  // Log status rintangan sebelum reset
+  console.log("Game Over - Rintangan Status Sebelum Reset:", {
+    jarakTempuh: jarakTempuh,
+    rintanganMuncul: rintanganSudahMuncul,
+    jumlahRintangan: daftarRintangan.length,
+  });
 
-// Fungsi Gerakkan Pemain  
-function gerakkanPemain() {  
-    // Gravitasi  
-    pemain.kecepatanY += GRAVITASI;  
+  resetPermainan();
+}
 
-    // Perbarui Posisi  
-    let potensialX = pemain.x + pemain.kecepatanX;  
-    
-    // Batasan Horizontal dengan margin 50 piksel di KEDUA SISI  
-    const margin = 50;   
-    
-    // Periksa apakah posisi potensial masih dalam batas yang diizinkan  
-    if (potensialX >= margin && potensialX <= canvas.width - pemain.lebar - margin) {  
-        pemain.x = potensialX;  
-    }  
+function resetPermainan() {
+  jarakTempuh = 0;
+  jarakSebelumRintangan = 0;
+  jarakKanan = 0; // Reset jarak kanan
+  jarakKiri = 0; // Reset jarak kiri
+  daftarRintangan = [];
+  rintanganSudahMuncul = false;
+  jumlahRintanganMuncul = 0; // Reset jumlah rintangan
 
-    pemain.y += pemain.kecepatanY;  
+  pemain.x = 180;
+  pemain.y = canvas.height - 40;
+}
 
-    // Batasan Tanah  
-    if (pemain.y >= canvas.height - pemain.tinggi) {  
-        pemain.y = canvas.height - pemain.tinggi;  
-        pemain.kecepatanY = 0;  
-        pemain.diTanah = true;  
-    }  
+// Fungsi Gerakkan Pemain
+function gerakkanPemain() {
+  // Gravitasi
+  pemain.kecepatanY += GRAVITASI;
 
-  // Log jarak tempuh ke kanan dan ke kiri dengan logika baru  
-    if (pemain.kecepatanX > 0) {   
-        // Bergerak ke kanan  
-        jarakKanan += Math.abs(pemain.kecepatanX);  
-        jarakKiri = Math.max(0, jarakKiri - Math.abs(pemain.kecepatanX));  
-        
-        console.log("Jarak Kanan: " + jarakKanan.toFixed(2) + ", Jarak Kiri: " + jarakKiri.toFixed(2));  
-    } else if (pemain.kecepatanX < 0) {  
-        // Bergerak ke kiri  
-        jarakKiri += Math.abs(pemain.kecepatanX);  
-        jarakKanan = Math.max(0, jarakKanan - Math.abs(pemain.kecepatanX));  
-        
-        console.log("Jarak Kanan: " + jarakKanan.toFixed(2) + ", Jarak Kiri: " + jarakKiri.toFixed(2));  
-    }  
-    // Tambahkan logika jarak tempuh  
-    if (pemain.kecepatanX > 0) {  
-        jarakTempuh += Math.abs(pemain.kecepatanX);  
-    }  
+  // Perbarui Posisi
+  let potensialX = pemain.x + pemain.kecepatanX;
 
-      
-    // Tambahkan rintangan setelah bergerak sejauh tertentu  
-    if (  
-        pemain.kecepatanX > 0 && // Pastikan bergerak ke kanan  
-        !rintanganSudahMuncul &&   
-        jarakKanan - jarakSebelumRintangan >= JARAK_MUNCULKAN_RINTANGAN  
-    ) {  
-        // Tambahkan rintangan dengan posisi kustom  
-        tambahkanRintangan(); // Posisi X dan Y bisa disesuaikan  
-        
-        rintanganSudahMuncul = true;  
-        jarakSebelumRintangan = jarakKanan;  
+  // Batasan Horizontal dengan margin 50 piksel di KEDUA SISI
+  const margin = 50;
 
-        console.log("Rintangan Muncul di Jarak Kanan:", jarakKanan);  
-    }  
+  // Periksa apakah posisi potensial masih dalam batas yang diizinkan
+  if (
+    potensialX >= margin &&
+    potensialX <= canvas.width - pemain.lebar - margin
+  ) {
+    pemain.x = potensialX;
+  }
 
+  pemain.y += pemain.kecepatanY;
 
-     // Tambahkan rintangan hanya sekali saat mencapai jarak tertentu  
-    if (jarakTempuh >= 200 && !rintanganSudahMuncul) {  
-        tambahkanRintangan();  
-        rintanganSudahMuncul = true;  
-        
-        // Debug log  
-        debugRintangan.status = true;  
-        debugRintangan.pesan = "Rintangan pertama muncul";  
-        console.log("Rintangan Muncul:", debugRintangan);  
-    }  
+  // Batasan Tanah
+  if (pemain.y >= canvas.height - pemain.tinggi) {
+    pemain.y = canvas.height - pemain.tinggi;
+    pemain.kecepatanY = 0;
+    pemain.diTanah = true;
+  }
 
-    // Fungsi untuk mengubah gambar berdasarkan gerakan  
-    function updateGambar() {  
-        // Jika sedang bergerak horizontal  
-        if (pemain.kecepatanX !== 0) {  
-            pemain.gambar = catMoveImg;  
-            sedangTidur = false;  
-            waktuTerakhirBergerak = Date.now();  
-        }   
-        // Jika tidak bergerak dan sudah lewat waktu tidur  
-        else if (Date.now() - waktuTerakhirBergerak >= WAKTU_TIDUR && !sedangTidur) {  
-            pemain.gambar = catSleepImg;  
-            sedangTidur = true;  
-        }  
-        // Jika tidak bergerak tapi belum waktunya tidur  
-        else if (pemain.kecepatanX === 0 && !sedangTidur) {  
-            pemain.gambar = catStayImg;  
+  // Log jarak tempuh ke kanan dan ke kiri dengan logika baru
+  if (pemain.kecepatanX > 0) {
+    // Bergerak ke kanan
+    jarakKanan += Math.abs(pemain.kecepatanX);
+    jarakKiri = Math.max(0, jarakKiri - Math.abs(pemain.kecepatanX));
+
+    console.log(
+      "Jarak Kanan: " +
+        jarakKanan.toFixed(2) +
+        ", Jarak Kiri: " +
+        jarakKiri.toFixed(2)
+    );
+  } else if (pemain.kecepatanX < 0) {
+    // Bergerak ke kiri
+    jarakKiri += Math.abs(pemain.kecepatanX);
+    jarakKanan = Math.max(0, jarakKanan - Math.abs(pemain.kecepatanX));
+
+    console.log(
+      "Jarak Kanan: " +
+        jarakKanan.toFixed(2) +
+        ", Jarak Kiri: " +
+        jarakKiri.toFixed(2)
+    );
+  }
+  // Tambahkan logika jarak tempuh
+  if (pemain.kecepatanX > 0) {
+    jarakTempuh += Math.abs(pemain.kecepatanX);
+  }
+
+  // Tambahkan rintangan setelah bergerak sejauh tertentu  
+    if (pemain.kecepatanX > 0) { // Pastikan bergerak ke kanan  
+        if (jumlahRintanganMuncul === 0 && jarakKanan >= JARAK_MUNCULKAN_RINTANGAN) {  
+            tambahkanRintangan(); // Tambah rintangan pertama  
+            jarakSebelumRintangan = jarakKanan;  
+            console.log("Rintangan Pertama Muncul di Jarak Kanan:", jarakKanan);  
+        } else if (jumlahRintanganMuncul === 1 && jarakKanan >= jarakSebelumRintangan + JARAK_MUNCULKAN_RINTANGAN_KE_2) {  
+            tambahkanRintangan(); // Tambah rintangan kedua  
+            jarakSebelumRintangan = jarakKanan;  
+            console.log("Rintangan Kedua Muncul di Jarak Kanan:", jarakKanan);  
         }  
     }  
 
-    // Panggil fungsi update gambar  
-    updateGambar();  
 
-    // Geser background  
-    if (pemain.kecepatanX > 0) {  
-        // Bergerak ke kanan  
-        backgroundScroll -= SCROLL_SPEED;  
-    } else if (pemain.kecepatanX < 0) {  
-        // Bergerak ke kiri  
-        backgroundScroll += SCROLL_SPEED;  
-    }  
-}  
+  // Fungsi untuk mengubah gambar berdasarkan gerakan
+  function updateGambar() {
+    // Jika sedang bergerak horizontal
+    if (pemain.kecepatanX !== 0) {
+      pemain.gambar = catMoveImg;
+      sedangTidur = false;
+      waktuTerakhirBergerak = Date.now();
+    }
+    // Jika tidak bergerak dan sudah lewat waktu tidur
+    else if (
+      Date.now() - waktuTerakhirBergerak >= WAKTU_TIDUR &&
+      !sedangTidur
+    ) {
+      pemain.gambar = catSleepImg;
+      sedangTidur = true;
+    }
+    // Jika tidak bergerak tapi belum waktunya tidur
+    else if (pemain.kecepatanX === 0 && !sedangTidur) {
+      pemain.gambar = catStayImg;
+    }
+  }
 
-// Fungsi Lompat  
-function lompat() {  
-    // Hanya bisa lompat jika di tanah  
-    if (pemain.diTanah) {  
-        pemain.kecepatanY = KEKUATAN_LOMPAT;  
-        pemain.diTanah = false;  
-        
-        // Ubah gambar ke gambar bergerak saat melompat  
-        pemain.gambar = catMoveImg;  
-        
-        // Reset waktu tidur  
-        waktuTerakhirBergerak = Date.now();  
-        sedangTidur = false;  
-    }  
-}  
+  // Panggil fungsi update gambar
+  updateGambar();
 
-// Fungsi Gambar Permainan  
-function gambarPermainan() {  
-    // Periksa apakah gambar sudah dimuat  
-    if (!semuaGambarDimuat) return;  
+  // Geser background
+  if (pemain.kecepatanX > 0) {
+    // Bergerak ke kanan
+    backgroundScroll -= SCROLL_SPEED;
+  } else if (pemain.kecepatanX < 0) {
+    // Bergerak ke kiri
+    backgroundScroll += SCROLL_SPEED;
+  }
+}
 
-    // Buat mirror background jika belum ada  
-    if (!backgroundMirror) {  
-        backgroundMirror = createMirrorImage(backgroundImg);  
-    }  
+// Fungsi Lompat
+function lompat() {
+  // Hanya bisa lompat jika di tanah
+  if (pemain.diTanah) {
+    pemain.kecepatanY = KEKUATAN_LOMPAT;
+    pemain.diTanah = false;
 
-    // Periksa waktu diam  
-    let waktuSekarang = Date.now();  
-    
-    // Kondisi untuk status tidur  
-    if (  
-        pemain.kecepatanX === 0 &&   
-        pemain.kecepatanY === 0 &&   
-        !sedangTidur  
-    ) {  
-        // Jika tidak bergerak selama 5 detik  
-        if (waktuSekarang - waktuTerakhirBergerak >= WAKTU_TIDUR) {  
-            pemain.gambar = catSleepImg;  
-            sedangTidur = true;  
-        }  
+    // Ubah gambar ke gambar bergerak saat melompat
+    pemain.gambar = catMoveImg;
 
-         // Setelah menggambar karakter  
-    ctx.strokeStyle = 'blue';  
-    ctx.strokeRect(  
-        pemain.x,   
-        pemain.y,   
-        pemain.lebar,   
-        pemain.tinggi  
+    // Reset waktu tidur
+    waktuTerakhirBergerak = Date.now();
+    sedangTidur = false;
+  }
+}
+
+// Fungsi Gambar Permainan
+function gambarPermainan() {
+  // Periksa apakah gambar sudah dimuat
+  if (!semuaGambarDimuat) return;
+
+  // Buat mirror background jika belum ada
+  if (!backgroundMirror) {
+    backgroundMirror = createMirrorImage(backgroundImg);
+  }
+
+  // Periksa waktu diam
+  let waktuSekarang = Date.now();
+
+      // Filter rintangan yang sudah mencapai akhir  
+    daftarRintangan = daftarRintangan.filter(rintangan =>   
+        !rintangan.sudahSampaiAkhir  
     );  
 
-    }  
+    daftarRintangan.forEach(rintangan => {  
+        rintangan.update();  
+        rintangan.gambar(ctx);  
+    });  
 
-    // Bersihkan Canvas  
-    ctx.clearRect(0, 0, canvas.width, canvas.height);   
+  // Kondisi untuk status tidur
+  if (pemain.kecepatanX === 0 && pemain.kecepatanY === 0 && !sedangTidur) {
+    // Jika tidak bergerak selama 5 detik
+    if (waktuSekarang - waktuTerakhirBergerak >= WAKTU_TIDUR) {
+      pemain.gambar = catSleepImg;
+      sedangTidur = true;
+    }
 
-    // Gambar background berulang tak terbatas  
-    ctx.save();  
-    
-    const lebarBackground = canvas.width;  
-    const totalBackground = 100; // Jumlah background yang akan di-render  
-    
-    for (let i = -totalBackground; i < totalBackground; i++) {  
-        let gambarSekarang;  
-        
-        // Tentukan gambar berdasarkan indeks  
-        if (i % 2 === 0) {  
-            gambarSekarang = backgroundImg;  
-        } else {  
-            gambarSekarang = backgroundMirror;  
-        }  
+    // Setelah menggambar karakter
+    ctx.strokeStyle = "blue";
+    ctx.strokeRect(pemain.x, pemain.y, pemain.lebar, pemain.tinggi);
+  }
 
-        // Hitung posisi x  
-        let posisiX = backgroundScroll + (i * lebarBackground);  
+  // Bersihkan Canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Gambar background  
-        ctx.drawImage(  
-            gambarSekarang,   
-            posisiX,   
-            0,   
-            lebarBackground,   
-            canvas.height  
-        );  
-    }  
+  // Gambar background berulang tak terbatas
+  ctx.save();
 
-    ctx.restore();  
+  const lebarBackground = canvas.width;
+  const totalBackground = 100; // Jumlah background yang akan di-render
 
-    // Gerakkan Pemain  
-    gerakkanPemain();  
+  for (let i = -totalBackground; i < totalBackground; i++) {
+    let gambarSekarang;
 
-    // Update dan Gambar Rintangan  
-    updateRintangan();  
-    gambarRintangan(ctx);  
+    // Tentukan gambar berdasarkan indeks
+    if (i % 2 === 0) {
+      gambarSekarang = backgroundImg;
+    } else {
+      gambarSekarang = backgroundMirror;
+    }
 
-    // Periksa Tabrakan  
-    cekTabrakan();  
+    // Hitung posisi x
+    let posisiX = backgroundScroll + i * lebarBackground;
 
-    // Gambar karakter  
-    ctx.save();  
-    if (pemain.menghadapKanan) {  
-        ctx.translate(pemain.x + pemain.lebar, pemain.y);  
-        ctx.scale(-1, 1);  
-        ctx.drawImage(pemain.gambar, 0, 0, pemain.lebar, pemain.tinggi);  
-    } else {  
-        ctx.drawImage(pemain.gambar, pemain.x, pemain.y, pemain.lebar, pemain.tinggi);  
-    }  
-    ctx.restore();  
+    // Gambar background
+    ctx.drawImage(gambarSekarang, posisiX, 0, lebarBackground, canvas.height);
+  }
 
-    // Lanjutkan Animasi  
-    requestAnimationFrame(gambarPermainan);  
-}  
+  ctx.restore();
 
-// Loop Permainan  
-function loopPermainan() {  
-    // Mulai gambar permainan  
-    gambarPermainan();  
-}  
+  // Gerakkan Pemain
+  gerakkanPemain();
 
-// Event Listener Tombol  
-document.getElementById('left').addEventListener('mousedown', () => {  
-    pemain.kecepatanX = -pemain.kecepatan;  
-    pemain.menghadapKanan = false;  
-    waktuTerakhirBergerak = Date.now();  
-    sedangTidur = false;  
-});  
+  // Update dan Gambar Rintangan
+  updateRintangan();
+  gambarRintangan(ctx);
 
-document.getElementById('right').addEventListener('mousedown', () => {  
-    pemain.kecepatanX = pemain.kecepatan;  
-    pemain.menghadapKanan = true;  
-    waktuTerakhirBergerak = Date.now();  
-    sedangTidur = false;  
-});  
+  // Periksa Tabrakan
+  cekTabrakan();
 
-document.addEventListener('mouseup', () => {  
-    pemain.kecepatanX = 0;  
-    waktuTerakhirBergerak = Date.now();  
-});  
+  // Gambar karakter
+  ctx.save();
+  if (pemain.menghadapKanan) {
+    ctx.translate(pemain.x + pemain.lebar, pemain.y);
+    ctx.scale(-1, 1);
+    ctx.drawImage(pemain.gambar, 0, 0, pemain.lebar, pemain.tinggi);
+  } else {
+    ctx.drawImage(
+      pemain.gambar,
+      pemain.x,
+      pemain.y,
+      pemain.lebar,
+      pemain.tinggi
+    );
+  }
+  ctx.restore();
 
-// Event Listener Keyboard  
-document.addEventListener('keydown', function(event) {  
-    switch(event.code) {  
-        case 'ArrowLeft':  
-            pemain.kecepatanX = -pemain.kecepatan;  
-            pemain.menghadapKanan = false;  
-            waktuTerakhirBergerak = Date.now();  
-            sedangTidur = false;  
-            break;  
-        case 'ArrowRight':  
-            pemain.kecepatanX = pemain.kecepatan;  
-            pemain.menghadapKanan = true;  
-            waktuTerakhirBergerak = Date.now();  
-            sedangTidur = false;  
-            break;  
-        case 'Space':  
-        case 'ArrowUp':  
-            lompat();  
-            break;  
-    }  
-});  
+  // Lanjutkan Animasi
+  requestAnimationFrame(gambarPermainan);
+}
 
-document.addEventListener('keyup', function(event) {  
-    if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {  
-        pemain.kecepatanX = 0;  
-        waktuTerakhirBergerak = Date.now();  
-    }  
-});  
+// Loop Permainan
+function loopPermainan() {
+  // Mulai gambar permainan
+  gambarPermainan();
+}
 
-// Event Listener untuk tombol Up  
-document.getElementById('up').addEventListener('mousedown', () => {  
-    lompat();  
-});  
+// Event Listener Tombol
+document.getElementById("left").addEventListener("mousedown", () => {
+  pemain.kecepatanX = -pemain.kecepatan;
+  pemain.menghadapKanan = false;
+  waktuTerakhirBergerak = Date.now();
+  sedangTidur = false;
+});
 
-// Inisialisasi Permainan  
+document.getElementById("right").addEventListener("mousedown", () => {
+  pemain.kecepatanX = pemain.kecepatan;
+  pemain.menghadapKanan = true;
+  waktuTerakhirBergerak = Date.now();
+  sedangTidur = false;
+});
+
+document.addEventListener("mouseup", () => {
+  pemain.kecepatanX = 0;
+  waktuTerakhirBergerak = Date.now();
+});
+
+// Event Listener Keyboard
+document.addEventListener("keydown", function (event) {
+  switch (event.code) {
+    case "ArrowLeft":
+      pemain.kecepatanX = -pemain.kecepatan;
+      pemain.menghadapKanan = false;
+      waktuTerakhirBergerak = Date.now();
+      sedangTidur = false;
+      break;
+    case "ArrowRight":
+      pemain.kecepatanX = pemain.kecepatan;
+      pemain.menghadapKanan = true;
+      waktuTerakhirBergerak = Date.now();
+      sedangTidur = false;
+      break;
+    case "Space":
+    case "ArrowUp":
+      lompat();
+      break;
+  }
+});
+
+document.addEventListener("keyup", function (event) {
+  if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
+    pemain.kecepatanX = 0;
+    waktuTerakhirBergerak = Date.now();
+  }
+});
+
+// Event Listener untuk tombol Up
+document.getElementById("up").addEventListener("mousedown", () => {
+  lompat();
+});
+
+// Inisialisasi Permainan
 muatGambar();
