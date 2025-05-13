@@ -94,7 +94,7 @@ class Rintangan {
 
 // Karakter
 let pemain = {
-  x: 180,
+  x: 120,
   y: canvas.height - 40,
   lebar: 40,
   tinggi: 40,
@@ -333,8 +333,8 @@ function lompat() {
 
     // Reset waktu tidur
     waktuTerakhirBergerak = Date.now();
-    sedangTidur = false;
   }
+  sedangTidur = false;
 }
 
 // Fungsi Gambar Permainan
@@ -437,60 +437,84 @@ function loopPermainan() {
   // Mulai gambar permainan
   gambarPermainan();
 }
+// Event Listener Tombol untuk Sentuhan dan Mouse  
+function setupControls() {  
+    const leftButton = document.getElementById("left");  
+    const rightButton = document.getElementById("right");  
+    const upButton = document.getElementById("up");  
 
-// Event Listener Tombol
-document.getElementById("left").addEventListener("mousedown", () => {
-  pemain.kecepatanX = -pemain.kecepatan;
-  pemain.menghadapKanan = false;
-  waktuTerakhirBergerak = Date.now();
-  sedangTidur = false;
-});
+    // Fungsi untuk start bergerak ke kiri  
+    function startMoveLeft() {  
+        pemain.kecepatanX = -pemain.kecepatan;  
+        pemain.menghadapKanan = false;  
+        waktuTerakhirBergerak = Date.now();  
+        sedangTidur = false;  
+    }  
 
-document.getElementById("right").addEventListener("mousedown", () => {
-  pemain.kecepatanX = pemain.kecepatan;
-  pemain.menghadapKanan = true;
-  waktuTerakhirBergerak = Date.now();
-  sedangTidur = false;
-});
+    // Fungsi untuk start bergerak ke kanan  
+    function startMoveRight() {  
+        pemain.kecepatanX = pemain.kecepatan;  
+        pemain.menghadapKanan = true;  
+        waktuTerakhirBergerak = Date.now();  
+        sedangTidur = false;  
+    }  
 
-document.addEventListener("mouseup", () => {
-  pemain.kecepatanX = 0;
-  waktuTerakhirBergerak = Date.now();
-});
+    // Fungsi untuk stop bergerak  
+    function stopMove() {  
+        pemain.kecepatanX = 0;  
+        waktuTerakhirBergerak = Date.now();  
+    }  
 
-// Event Listener Keyboard
-document.addEventListener("keydown", function (event) {
-  switch (event.code) {
-    case "ArrowLeft":
-      pemain.kecepatanX = -pemain.kecepatan;
-      pemain.menghadapKanan = false;
-      waktuTerakhirBergerak = Date.now();
-      sedangTidur = false;
-      break;
-    case "ArrowRight":
-      pemain.kecepatanX = pemain.kecepatan;
-      pemain.menghadapKanan = true;
-      waktuTerakhirBergerak = Date.now();
-      sedangTidur = false;
-      break;
-    case "Space":
-    case "ArrowUp":
-      lompat();
-      break;
-  }
-});
+    // Event untuk tombol kiri  
+    leftButton.addEventListener("mousedown", startMoveLeft);  
+    leftButton.addEventListener("touchstart", (e) => {  
+        e.preventDefault(); // Mencegah scroll/zoom  
+        startMoveLeft();  
+    });  
 
-document.addEventListener("keyup", function (event) {
-  if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
-    pemain.kecepatanX = 0;
-    waktuTerakhirBergerak = Date.now();
-  }
-});
+    // Event untuk tombol kanan  
+    rightButton.addEventListener("mousedown", startMoveRight);  
+    rightButton.addEventListener("touchstart", (e) => {  
+        e.preventDefault();  
+        startMoveRight();  
+    });  
 
-// Event Listener untuk tombol Up
-document.getElementById("up").addEventListener("mousedown", () => {
-  lompat();
-});
+    // Event untuk tombol up/lompat  
+    upButton.addEventListener("mousedown", lompat);  
+    upButton.addEventListener("touchstart", (e) => {  
+        e.preventDefault();  
+        lompat();  
+        
+    });  
 
+    // Events untuk stop bergerak  
+    document.addEventListener("mouseup", stopMove);  
+    document.addEventListener("touchend", stopMove);  
+
+    // Event Listener Keyboard  
+    document.addEventListener("keydown", function (event) {  
+        switch (event.code) {  
+            case "ArrowLeft":  
+                startMoveLeft();  
+                break;  
+            case "ArrowRight":  
+                startMoveRight();  
+                break;  
+            case "Space":  
+            case "ArrowUp":  
+                lompat();  
+                break;  
+        }  
+    });  
+
+    document.addEventListener("keyup", function (event) {  
+        if (event.code === "ArrowLeft" || event.code === "ArrowRight") {  
+            stopMove();  
+        }  
+    });  
+}  
+
+// Panggil fungsi setup kontrol saat game dimuat  
+window.addEventListener('load', setupControls);
 // Inisialisasi Permainan
 muatGambar();
