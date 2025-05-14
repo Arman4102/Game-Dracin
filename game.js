@@ -53,6 +53,9 @@ let jarakTempuhKarakter = 0;
 const JARAK_MUNCULKAN_RINTANGAN_KETIGA = 400; // Bisa disesuaikan
 let rintanganPengejar = null;
 
+// Variabel global untuk melacak info teks
+let infoTextDisplayed = false;
+
 // Kelas Rintangan (tetap sama)
 class Rintangan {
   constructor(x, y, bergerak = false, jatuh = true, sekaliMuncul = false) {
@@ -147,6 +150,24 @@ class RintanganPengejar {
     return jarak < this.radius + pemain.radius; // Memeriksa jarak antara dua objek
   }
 }
+
+function checkJarakKiri() {
+ if (jarakKiri >= 500 && !infoTextDisplayed) {
+        // Menampilkan teks info
+        document.getElementById("info-text").classList.add("visible");
+        infoTextDisplayed = true;
+
+        // Menambahkan alert setelah beberapa detik
+        setTimeout(function() {
+            // Tampilkan alert
+            alert("Lupakan");
+
+            // Refresh halaman setelah alert
+            location.reload();
+        }, 2000); // 3 detik setelah teks muncul
+    }
+}
+
 
 // Fungsi cek tabrakan untuk rintangan pengejar dengan jarak yang lebih dalam
 function cekTabrakanPengejar(rintanganPengejar, pemain) {
@@ -247,6 +268,11 @@ function updateRintangan() {
     (rintangan) => rintangan.y < canvas.height + 50
   );
 
+  
+    // Cek jarak kiri dan tampilkan teks info
+    checkJarakKiri();  // Memanggil fungsi untuk menampilkan teks info jika jarak kiri >= 500
+
+
   // Periksa tabrakan untuk rintangan biasa
   daftarRintangan.forEach((rintangan) => {
     if (
@@ -268,6 +294,9 @@ function updateRintangan() {
       console.log("Kena rintangan pengejar!");
       gameOver(); // Panggil game over jika kena rintangan pengejar
       gameOverCalled = true; // Tandai game over sudah dipanggil
+            // Hapus rintangan pengejar dari daftar rintangan setelah tabrakan
+      rintanganPengejar = null;  // Menghapus rintangan pengejar dari permainan
+             location.reload();
     }
   }
 
@@ -293,6 +322,18 @@ function cekTabrakan() {
     }
   });
 }
+
+// Fungsi untuk menyembunyikan teks info setelah beberapa detik
+function hideInfoText() {
+    setTimeout(() => {
+        document.getElementById("info-text").classList.remove("visible");
+        infoTextDisplayed = false;
+    }, 3000);  // Menyembunyikan teks setelah 3 detik
+}
+
+// Panggil hideInfoText setelah menampilkan teks info
+hideInfoText();
+
 
 function gameOver() {
   alert("Game Over!");
@@ -638,12 +679,12 @@ function lompat() {
 // Fungsi untuk menggambar karakter dengan border
 function gambarKarakter(ctx) {
   // Gambar karakter
-  ctx.drawImage(pemain.gambar, pemain.x, pemain.y, pemain.lebar, pemain.tinggi);
+  // ctx.drawImage(pemain.gambar, pemain.x, pemain.y, pemain.lebar, pemain.tinggi);
 
   // Gambar border karakter (garis pinggir)
-  ctx.strokeStyle = "blue"; // Warna border karakter
-  ctx.lineWidth = 2; // Lebar border
-  ctx.strokeRect(pemain.x, pemain.y, pemain.lebar, pemain.tinggi); // Gambar rectangle border
+  // ctx.strokeStyle = "blue"; // Warna border karakter
+  // ctx.lineWidth = 2; // Lebar border
+  // ctx.strokeRect(pemain.x, pemain.y, pemain.lebar, pemain.tinggi); // Gambar rectangle border
 }
 
 function gambarRintangan(ctx) {
@@ -698,9 +739,9 @@ function gambarPermainan() {
       sedangTidur = true;
     }
 
-    // Setelah menggambar karakter
-    ctx.strokeStyle = "blue";
-    ctx.strokeRect(pemain.x, pemain.y, pemain.lebar, pemain.tinggi);
+    // // Setelah menggambar karakter
+    // ctx.strokeStyle = "blue";
+    // ctx.strokeRect(pemain.x, pemain.y, pemain.lebar, pemain.tinggi);
   }
 
   // Bersihkan Canvas
@@ -851,3 +892,54 @@ function setupControls() {
 window.addEventListener("load", setupControls);
 // Inisialisasi Permainan
 muatGambar();
+
+document.addEventListener('DOMContentLoaded', () => {  
+    const nameModal = document.getElementById('name-input-modal');  
+    const nameInput = document.getElementById('name-input');  
+    const submitNameButton = document.getElementById('submit-name');  
+    const playerNameDisplay = document.getElementById('player-name');  
+
+    // Fungsi untuk menampilkan modal  
+    function showNameModal() {  
+        nameModal.classList.remove('hidden');  
+    }  
+
+    // Fungsi untuk menyembunyikan modal  
+    function hideNameModal() {  
+        nameModal.classList.add('hidden');  
+    }  
+
+    // Tambahkan event listener untuk submit nama  
+    submitNameButton.addEventListener('click', () => {  
+        const playerName = nameInput.value.trim();  
+        if (playerName) {  
+            // Update teks nama di atas canvas dengan struktur baru  
+            playerNameDisplay.innerHTML = `  
+                <span class="nihao">Nihao</span>   
+                <span class="player-name-text">${playerName}</span>  
+            `;  
+            hideNameModal();  
+        } else {  
+            // Peringatan jika nama kosong  
+            alert('Silakan masukkan nama Anda');  
+        }  
+    });  
+
+    // Tampilkan modal saat halaman dimuat  
+    showNameModal();  
+
+    // Opsional: Bisa submit dengan menekan Enter  
+    nameInput.addEventListener('keypress', (e) => {  
+        if (e.key === 'Enter') {  
+            submitNameButton.click();  
+        }  
+    });  
+
+    // Jika tidak ada nama yang dimasukkan, gunakan default "Tamu"  
+    if (!playerNameDisplay.textContent.trim()) {  
+        playerNameDisplay.innerHTML = `  
+            <span class="nihao">Nihao</span>   
+            <span class="player-name-text">Tamu</span>  
+        `;  
+    }  
+});
