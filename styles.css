@@ -2,7 +2,7 @@
     margin: 0;  
     padding: 0;  
     box-sizing: border-box;  
-    touch-action: manipulation; /* Mencegah zoom pada double tap */  
+    touch-action: manipulation;  
 }  
 
 body {  
@@ -11,9 +11,25 @@ body {
     justify-content: center;  
     align-items: center;  
     height: 100vh;  
-    background-color: #f0f0f0;  
     margin: 0;  
-    overflow: hidden; /* Mencegah scrolling */  
+    overflow: hidden;  
+    position: relative;  /* Tambahkan ini */  
+}  
+
+/* Pseudo-element untuk background blur */  
+body::before {  
+    content: "";  
+    position: fixed;  
+    top: 0;  
+    left: 0;  
+    width: 100%;  
+    height: 100%;  
+    background-image: url('assets/background_game.png');  
+    background-size: cover;  
+    background-position: center;  
+    background-repeat: no-repeat;  
+    filter: blur(3px);  /* Blur hanya background */  
+    z-index: -1;  /* Letakkan di bawah konten */  
 }  
 
 #game-container {  
@@ -21,37 +37,51 @@ body {
     width: 100%;  
     max-width: 100%;  
     padding: 10px;  
+    background: rgba(255, 255, 255, 0.2);  
+    border-radius: 15px;  
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);  
+    position: relative;  
+    z-index: 10;  
 }  
 
 canvas {  
-    border: 2px solid black;  
-    background-color: #e0e0e0;  
+    border: 2px solid rgba(0, 0, 0, 0.3);  
+    background-color: rgba(255, 255, 255, 0.8);  
     position: relative;  
     max-width: 100%;  
     width: 100%;  
     height: auto;  
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);  
 }  
 
 #controls {  
     display: flex;  
     justify-content: center;  
     margin-top: 20px;  
-    gap: 20px; /* Jarak antar tombol */  
+    gap: 20px;  
+    background: rgba(255, 255, 255, 0.3);  
+    padding: 10px;  
+    border-radius: 10px;  
+    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);  
 }  
 
 button {  
-    font-size: 24px; /* Lebih besar */  
-    padding: 15px 25px; /* Lebih besar */  
+    font-size: 24px;  
+    padding: 15px 25px;  
     margin: 5px;  
     cursor: pointer;  
-    touch-action: manipulation; /* Support touch events */  
-    border: 2px solid #333;  
-    border-radius: 10px; /* Sudut tombol membulat */  
-    background-color: #f0f0f0;  
+    touch-action: manipulation;  
+    border: 2px solid rgba(0, 0, 0, 0.3);  
+    border-radius: 10px;  
+    background: rgba(255, 255, 255, 0.7);  
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);  
+    transition: all 0.3s ease;  
 }  
 
 button:active {  
-    background-color: #ddd; /* Efek tekan */  
+    background-color: rgba(220, 220, 220, 0.7);   
+    transform: scale(0.95);  
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);  
 }  
 
 /* Responsif untuk layar kecil */  

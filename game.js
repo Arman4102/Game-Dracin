@@ -46,51 +46,126 @@ let rintanganSudahMuncul = false;
 
 // Tambahkan variabel global untuk melacak jumlah rintangan dan jarak munculnya
 let jumlahRintanganMuncul = 0;
-const JARAK_MUNCULKAN_RINTANGAN_KE_2 = 100; // Jarak untuk rintangan kedua
+const JARAK_MUNCULKAN_RINTANGAN_KE_2 = 200; // Jarak untuk rintangan kedua
 
-class Rintangan {  
-    constructor(x, y, bergerak = false, jatuh = true, sekaliMuncul = false) {  
-        this.x = x;  
-        this.y = y;  
-        this.radius = 20;  
-        this.kecepatanX = bergerak ? 2 : 0;  
-        this.kecepatanY = jatuh ? 1.5 : 0;  
-        this.jatuh = jatuh;  
-        this.sekaliMuncul = sekaliMuncul;  
-        this.sudahSampaiAkhir = false;  
-    }  
+// Tambahkan di bagian global variabel
+let jarakTempuhKarakter = 0;
+const JARAK_MUNCULKAN_RINTANGAN_KETIGA = 400; // Bisa disesuaikan
+let rintanganPengejar = null;
 
-    update() {  
-        // Gerakan horizontal jika bergerak  
-        if (this.kecepatanX !== 0) {  
-            this.x += this.kecepatanX;  
+// Kelas Rintangan (tetap sama)
+class Rintangan {
+  constructor(x, y, bergerak = false, jatuh = true, sekaliMuncul = false) {
+    this.x = x;
+    this.y = y;
+    this.radius = 20;
+    this.kecepatanX = bergerak ? 2 : 0;
+    this.kecepatanY = jatuh ? 1 : 0;
+    this.jatuh = jatuh;
+    this.sekaliMuncul = sekaliMuncul;
+    this.sudahSampaiAkhir = false;
+  }
 
-            // Jika sekali muncul, berhenti saat mencapai akhir layar  
-            if (this.sekaliMuncul && this.x > canvas.width + this.radius) {  
-                this.sudahSampaiAkhir = true;  
-            }  
-        }  
+  update() {
+    // Gerakan horizontal jika bergerak
+    if (this.kecepatanX !== 0) {
+      this.x += this.kecepatanX;
 
-        // Gerakan vertikal (jatuh)  
-        if (this.jatuh) {  
-            this.y += this.kecepatanY;  
+      // Jika sekali muncul, berhenti saat mencapai akhir layar
+      if (this.sekaliMuncul && this.x > canvas.width + this.radius) {
+        this.sudahSampaiAkhir = true;
+      }
+    }
 
-            // Terus jatuh sampai benar-benar keluar canvas  
-            if (this.y > canvas.height + this.radius) {  
-                // Hapus rintangan dari daftar  
-                daftarRintangan = daftarRintangan.filter(r => r !== this);  
-            }  
-        }  
-    }  
+    // Gerakan vertikal (jatuh)
+    if (this.jatuh) {
+      this.y += this.kecepatanY;
 
-    gambar(ctx) {  
-        ctx.beginPath();  
-        ctx.fillStyle = 'red';  
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);  
-        ctx.fill();  
-    }  
-}  
-  
+      // Terus jatuh sampai benar-benar keluar canvas
+      if (this.y > canvas.height + this.radius) {
+        // Hapus rintangan dari daftar
+        daftarRintangan = daftarRintangan.filter((r) => r !== this);
+      }
+    }
+  }
+
+  gambar(ctx) {
+    ctx.beginPath();
+    ctx.fillStyle = "red";
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    //         // Gambar border (garis pinggir rintangan)
+    // ctx.strokeStyle = 'yellow';  // Warna border
+    // ctx.lineWidth = 2;  // Lebar border
+    // ctx.stroke();  // Gambar border pada lingkaran
+  }
+}
+
+// Kelas RintanganPengejar
+class RintanganPengejar {
+  constructor(
+    radius = 5, // Ukuran radius kecil
+    startX = -radius,
+    startY = 10,
+    kecepatanAwal = 0.3,
+    warna = "purple"
+  ) {
+    this.radius = radius;
+    this.x = startX;
+    this.y = startY;
+    this.kecepatanX = kecepatanAwal;
+    this.kecepatanY = 0;
+    this.warna = warna;
+  }
+
+  update(targetX, targetY) {
+    let sudutKekarakter = Math.atan2(targetY - this.y, targetX - this.x);
+    this.kecepatanX = Math.cos(sudutKekarakter) * 0.3;
+    this.kecepatanY = Math.sin(sudutKekarakter) * 0.3;
+    this.x += this.kecepatanX;
+    this.y += this.kecepatanY;
+  }
+
+  gambar(ctx) {
+    ctx.beginPath();
+    ctx.fillStyle = this.warna;
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // // Gambar border (garis pinggir rintangan pengejar)
+    // ctx.strokeStyle = 'yellow';  // Warna border
+    // ctx.lineWidth = 2;  // Lebar border
+    // ctx.stroke();  // Gambar border pada lingkaran pengejar
+  }
+
+  // Fungsi untuk mengecek tabrakan dengan karakter
+  cekTabrakan(pemain) {
+    let jarak = Math.sqrt(
+      Math.pow(this.x - pemain.x, 2) + Math.pow(this.y - pemain.y, 2)
+    );
+    return jarak < this.radius + pemain.radius; // Memeriksa jarak antara dua objek
+  }
+}
+
+// Fungsi cek tabrakan untuk rintangan pengejar dengan jarak yang lebih dalam
+function cekTabrakanPengejar(rintanganPengejar, pemain) {
+    // Hitung jarak antara pusat rintangan pengejar dan pusat pemain
+    let jarakX = Math.abs(pemain.x + pemain.lebarHitbox / 2 - rintanganPengejar.x);  // Pakai /2 untuk tengah objek
+    let jarakY = Math.abs(pemain.y + pemain.tinggiHitbox / 2 - rintanganPengejar.y); // Pakai /2 untuk tengah objek
+
+    // Tentukan ukuran area tabrakan (lebih besar dari area normal)
+    let lebarTabrakan = (pemain.lebarHitbox + rintanganPengejar.radius * 2) / 1.5;  // Menggunakan nilai yang lebih realistis
+    let tinggiTabrakan = (pemain.tinggiHitbox + rintanganPengejar.radius * 2) / 1.5; // Menggunakan nilai yang lebih realistis
+
+    // Cek tabrakan: jika jarak horizontal atau vertikal lebih kecil dari area tabrakan
+    if (jarakX < lebarTabrakan && jarakY < tinggiTabrakan) {
+        console.log("Tabrakan Detected!");
+        return true; // Jika tabrakan, return true
+    }
+    return false; // Jika tidak ada tabrakan
+}
+
 
 // Karakter
 let pemain = {
@@ -98,6 +173,8 @@ let pemain = {
   y: canvas.height - 40,
   lebar: 40,
   tinggi: 40,
+  lebarHitbox: 10, // Lebar hitbox yang lebih kecil untuk perhitungan tabrakan
+  tinggiHitbox: 10, // Tinggi hitbox yang lebih kecil untuk perhitungan tabrakan
   kecepatanX: 0,
   kecepatanY: 0,
   kecepatan: 1.25,
@@ -144,32 +221,60 @@ function createMirrorImage(image) {
   return mirrorCanvas;
 }
 
-function tambahkanRintangan() {  
-    if (jumlahRintanganMuncul === 0) {  
-        // Rintangan pertama (jatuh)  
-        let rintanganPertama = new Rintangan(canvas.width / 1.3, 10, false, true);  
-        daftarRintangan.push(rintanganPertama);  
-    } else if (jumlahRintanganMuncul === 1) {  
-        // Rintangan kedua (bergerak horizontal sekali, tidak jatuh)  
-        let posisiY = canvas.height - 40; // Sejajar dengan karakter  
-        let rintanganKedua = new Rintangan(-20, posisiY, true, false, true);  
-        daftarRintangan.push(rintanganKedua);  
-    }  
-    jumlahRintanganMuncul++;  
-}  
+// Fungsi tambahkan rintangan (modifikasi)
+function tambahkanRintangan() {
+  if (jumlahRintanganMuncul === 0) {
+    // Rintangan pertama (jatuh)
+    let rintanganPertama = new Rintangan(canvas.width / 1.3, -50, false, true);
+    daftarRintangan.push(rintanganPertama);
+  } else if (jumlahRintanganMuncul === 1) {
+    // Rintangan kedua (bergerak horizontal, tidak jatuh)
+    let posisiY = canvas.height - 40;
+    let rintanganKedua = new Rintangan(-20, posisiY, true, false);
+    daftarRintangan.push(rintanganKedua);
+  }
+  jumlahRintanganMuncul++;
+}
+let gameOverCalled = false; // Status untuk memeriksa apakah game over sudah dipanggil
 
+// Fungsi updateRintangan yang diperbarui
 function updateRintangan() {
+  // Jika game sudah berakhir, jangan jalankan update lainnya
+  if (gameOverCalled) return;
+
   // Hapus rintangan yang sudah keluar layar
   daftarRintangan = daftarRintangan.filter(
     (rintangan) => rintangan.y < canvas.height + 50
   );
 
-  // Update setiap rintangan
-  daftarRintangan.forEach((rintangan) => rintangan.update());
-}
+  // Periksa tabrakan untuk rintangan biasa
+  daftarRintangan.forEach((rintangan) => {
+    if (
+      typeof rintangan.cekTabrakan === "function" &&
+      rintangan.cekTabrakan(pemain)
+    ) {
+      console.log("Kena rintangan!");
+      gameOver(); // Panggil game over jika kena rintangan biasa
+      gameOverCalled = true; // Tandai game over sudah dipanggil
+    }
+  });
 
-function gambarRintangan(ctx) {
-  daftarRintangan.forEach((rintangan) => rintangan.gambar(ctx));
+  // Update dan gambar rintangan pengejar jika ada
+  if (rintanganPengejar) {
+    rintanganPengejar.update(pemain.x, pemain.y);
+
+    // Cek tabrakan dengan rintangan pengejar
+    if (cekTabrakanPengejar(rintanganPengejar, pemain)) {
+      console.log("Kena rintangan pengejar!");
+      gameOver(); // Panggil game over jika kena rintangan pengejar
+      gameOverCalled = true; // Tandai game over sudah dipanggil
+    }
+  }
+
+  // Gambar rintangan pengejar jika ada
+  if (rintanganPengejar) {
+    rintanganPengejar.gambar(ctx);
+  }
 }
 
 function cekTabrakan() {
@@ -179,8 +284,8 @@ function cekTabrakan() {
     let jarakY = Math.abs(pemain.y + pemain.tinggi / 2 - rintangan.y);
 
     // Tentukan ukuran area tabrakan
-    let lebarTabrakan = (pemain.lebar + rintangan.radius * 2) / 3;
-    let tinggiTabrakan = (pemain.tinggi + rintangan.radius * 2) / 3;
+    let lebarTabrakan = (pemain.lebarHitbox + rintangan.radius * 2) / 3;
+    let tinggiTabrakan = (pemain.tinggiHitbox + rintangan.radius * 2) / 3;
 
     // Cek tabrakan
     if (jarakX < lebarTabrakan && jarakY < tinggiTabrakan) {
@@ -200,6 +305,8 @@ function gameOver() {
   });
 
   resetPermainan();
+
+  gameOverCalled = true;
 }
 
 function resetPermainan() {
@@ -235,6 +342,87 @@ function gerakkanPemain() {
   }
 
   pemain.y += pemain.kecepatanY;
+
+  // Tambahkan logika untuk munculkan rintangan ketiga
+  if (pemain.kecepatanX > 0) {
+    // Pastikan bergerak ke kanan
+    // Hitung jarak tempuh
+    jarakTempuhKarakter += Math.abs(pemain.kecepatanX);
+
+    // Debug: Tampilkan jarak tempuh
+    console.log("Jarak Tempuh Karakter:", jarakTempuhKarakter);
+
+    // Cek untuk munculkan rintangan ketiga berdasarkan jarak kanan
+    if (
+      jumlahRintanganMuncul === 2 &&
+      jarakKanan >= JARAK_MUNCULKAN_RINTANGAN_KETIGA &&
+      !rintanganPengejar
+    ) {
+      console.log("Munculkan Rintangan Ketiga berdasarkan Jarak Kanan");
+      rintanganPengejar = new RintanganPengejar(); // Buat rintangan pengejar baru
+      jumlahRintanganMuncul++; // Meningkatkan jumlah rintangan muncul
+    }
+  }
+
+  // Update rintangan pengejar jika ada
+  if (rintanganPengejar) {
+    rintanganPengejar.update(pemain.x, pemain.y);
+
+    // Cek tabrakan
+    if (rintanganPengejar.cekTabrakan(pemain)) {
+      console.log("Kena rintangan pengejar!");
+      gameOver();
+    }
+  }
+
+  // Gambar rintangan pengejar jika ada
+  if (rintanganPengejar) {
+    rintanganPengejar.gambar(ctx);
+  }
+
+  if (pemain.kecepatanX > 0) {
+    // Pastikan bergerak ke
+    if (
+      jumlahRintanganMuncul === 0 &&
+      jarakKanan >= JARAK_MUNCULKAN_RINTANGAN
+    ) {
+      tambahkanRintangan(); // Tambah rintangan pertama
+      jarakSebelumRintangan = jarakKanan;
+      console.log("Rintangan Pertama Muncul di Jarak Kanan:", jarakKanan);
+    } else if (
+      jumlahRintanganMuncul === 1 &&
+      jarakKanan >= jarakSebelumRintangan + JARAK_MUNCULKAN_RINTANGAN_KE_2
+    ) {
+      tambahkanRintangan(); // Tambah rintangan kedua
+      jarakSebelumRintangan = jarakKanan;
+      console.log("Rintangan Kedua Muncul di Jarak Kanan:", jarakKanan);
+    } else if (
+      jumlahRintanganMuncul === 2 &&
+      jarakKanan >= jarakSebelumRintangan + JARAK_MUNCULKAN_RINTANGAN_KETIGA
+    ) {
+      console.log("Munculkan Rintangan Ketiga");
+
+      // Buat rintangan pengejar baru
+      rintanganPengejar = new RintanganPengejar();
+      jumlahRintanganMuncul++;
+    }
+  }
+
+  // Update rintangan pengejar jika ada
+  if (rintanganPengejar) {
+    rintanganPengejar.update(pemain.x, pemain.y);
+
+    // Cek tabrakan
+    if (rintanganPengejar.cekTabrakan(pemain)) {
+      console.log("Kena rintangan pengejar!");
+      gameOver();
+    }
+  }
+
+  // Gambar rintangan pengejar jika ada
+  if (rintanganPengejar) {
+    rintanganPengejar.gambar(ctx);
+  }
 
   // Batasan Tanah
   if (pemain.y >= canvas.height - pemain.tinggi) {
@@ -272,20 +460,6 @@ function gerakkanPemain() {
     jarakTempuh += Math.abs(pemain.kecepatanX);
   }
 
-  // Tambahkan rintangan setelah bergerak sejauh tertentu  
-    if (pemain.kecepatanX > 0) { // Pastikan bergerak ke kanan  
-        if (jumlahRintanganMuncul === 0 && jarakKanan >= JARAK_MUNCULKAN_RINTANGAN) {  
-            tambahkanRintangan(); // Tambah rintangan pertama  
-            jarakSebelumRintangan = jarakKanan;  
-            console.log("Rintangan Pertama Muncul di Jarak Kanan:", jarakKanan);  
-        } else if (jumlahRintanganMuncul === 1 && jarakKanan >= jarakSebelumRintangan + JARAK_MUNCULKAN_RINTANGAN_KE_2) {  
-            tambahkanRintangan(); // Tambah rintangan kedua  
-            jarakSebelumRintangan = jarakKanan;  
-            console.log("Rintangan Kedua Muncul di Jarak Kanan:", jarakKanan);  
-        }  
-    }  
-
-
   // Fungsi untuk mengubah gambar berdasarkan gerakan
   function updateGambar() {
     // Jika sedang bergerak horizontal
@@ -295,6 +469,130 @@ function gerakkanPemain() {
       waktuTerakhirBergerak = Date.now();
     }
     // Jika tidak bergerak dan sudah lewat waktu tidur
+    else if (
+      Date.now() - waktuTerakhirBergerak >= WAKTU_TIDUR &&
+      !sedangTidur
+    ) {
+      pemain.gambar = catSleepImg;
+      sedangTidur = true;
+    }
+    // Jika tidak bergerak tapi belum waktunya tidur
+    else if (pemain.kecepatanX === 0 && !sedangTidur) {
+      pemain.gambar = catStayImg;
+    }
+  }
+
+  // Fungsi Update Game
+  function updateGame() {
+    if (pemain.kecepatanX > 0) {
+      // Pastikan bergerak ke kanan
+      // Cek untuk munculkan rintangan ketiga berdasarkan jarak kanan
+      if (
+        jumlahRintanganMuncul === 2 &&
+        jarakKanan >= JARAK_MUNCULKAN_RINTANGAN_KETIGA &&
+        !rintanganPengejar
+      ) {
+        console.log("Munculkan Rintangan Ketiga berdasarkan Jarak Kanan");
+        // Buat rintangan pengejar baru
+        rintanganPengejar = new RintanganPengejar();
+        jumlahRintanganMuncul++; // Meningkatkan jumlah rintangan muncul
+      }
+    }
+
+    // Update rintangan pengejar jika ada
+    if (rintanganPengejar) {
+      rintanganPengejar.update(pemain.x, pemain.y);
+
+      // Cek tabrakan
+      if (rintanganPengejar.cekTabrakan(pemain)) {
+        console.log("Kena rintangan pengejar!");
+        gameOver(); // Jika tabrakan, panggil gameOver
+      }
+    }
+
+    // Gambar rintangan pengejar jika ada
+    if (rintanganPengejar) {
+      rintanganPengejar.gambar(ctx);
+    }
+
+    // Update posisi pemain berdasarkan gravitasi
+    pemain.kecepatanY += GRAVITASI; // Gravitasi menambah kecepatan vertikal pemain
+
+    // Perbarui posisi pemain secara horizontal
+    let potensialX = pemain.x + pemain.kecepatanX;
+
+    // Batasan Horizontal dengan margin 50 piksel di kiri dan kanan
+    const margin = 50;
+
+    // Periksa apakah posisi horizontal pemain masih dalam batas yang diizinkan
+    if (
+      potensialX >= margin &&
+      potensialX <= canvas.width - pemain.lebar - margin
+    ) {
+      pemain.x = potensialX;
+    }
+
+    // Perbarui posisi vertikal pemain
+    pemain.y += pemain.kecepatanY;
+
+    // Periksa apakah pemain telah mencapai tanah
+    if (pemain.y >= canvas.height - pemain.tinggi) {
+      pemain.y = canvas.height - pemain.tinggi; // Setel Y ke posisi tanah
+      pemain.kecepatanY = 0; // Hentikan kecepatan vertikal
+      pemain.diTanah = true; // Tandai pemain ada di tanah
+    }
+
+    // Update rintangan yang telah melewati layar
+    daftarRintangan = daftarRintangan.filter(
+      (rintangan) => rintangan.y < canvas.height + 50
+    );
+
+    // Update posisi dan gambar setiap rintangan
+    daftarRintangan.forEach((rintangan) => rintangan.update());
+
+    // Gambar semua rintangan
+    daftarRintangan.forEach((rintangan) => rintangan.gambar(ctx));
+
+    // Cek tabrakan antara pemain dan rintangan
+    cekTabrakan();
+
+    // Gambar karakter berdasarkan statusnya
+    ctx.save();
+    if (pemain.menghadapKanan) {
+      ctx.translate(pemain.x + pemain.lebar, pemain.y);
+      ctx.scale(-1, 1); // Gambar karakter dengan pembalikan horizontal
+      ctx.drawImage(pemain.gambar, 0, 0, pemain.lebar, pemain.tinggi);
+    } else {
+      ctx.drawImage(
+        pemain.gambar,
+        pemain.x,
+        pemain.y,
+        pemain.lebar,
+        pemain.tinggi
+      );
+    }
+    ctx.restore();
+
+    // Update gambar karakter berdasarkan gerakan
+    updateGambar();
+
+    // Geser background jika pemain bergerak ke kanan
+    if (pemain.kecepatanX > 0) {
+      backgroundScroll -= SCROLL_SPEED; // Geser latar belakang ke kiri
+    } else if (pemain.kecepatanX < 0) {
+      backgroundScroll += SCROLL_SPEED; // Geser latar belakang ke kanan
+    }
+  }
+
+  // Fungsi untuk mengupdate gambar karakter berdasarkan gerakan
+  function updateGambar() {
+    // Jika pemain bergerak horizontal
+    if (pemain.kecepatanX !== 0) {
+      pemain.gambar = catMoveImg;
+      sedangTidur = false;
+      waktuTerakhirBergerak = Date.now();
+    }
+    // Jika pemain tidak bergerak dan sudah lewat waktu tidur
     else if (
       Date.now() - waktuTerakhirBergerak >= WAKTU_TIDUR &&
       !sedangTidur
@@ -337,6 +635,38 @@ function lompat() {
   sedangTidur = false;
 }
 
+// Fungsi untuk menggambar karakter dengan border
+function gambarKarakter(ctx) {
+  // Gambar karakter
+  ctx.drawImage(pemain.gambar, pemain.x, pemain.y, pemain.lebar, pemain.tinggi);
+
+  // Gambar border karakter (garis pinggir)
+  ctx.strokeStyle = "blue"; // Warna border karakter
+  ctx.lineWidth = 2; // Lebar border
+  ctx.strokeRect(pemain.x, pemain.y, pemain.lebar, pemain.tinggi); // Gambar rectangle border
+}
+
+function gambarRintangan(ctx) {
+  // Gambar semua rintangan
+  daftarRintangan.forEach((rintangan) => {
+    rintangan.gambar(ctx); // Gambar rintangan biasa
+
+    // Gambar border rintangan biasa
+    ctx.strokeStyle = "yellow"; // Warna border
+    ctx.lineWidth = 2; // Lebar border
+    ctx.stroke(); // Gambar border pada lingkaran rintangan
+  });
+
+  // Gambar rintangan pengejar (bola ungu)
+  if (rintanganPengejar) {
+    rintanganPengejar.gambar(ctx); // Gambar rintangan pengejar
+    // Gambar border pada rintangan pengejar
+    ctx.strokeStyle = "yellow"; // Warna border
+    ctx.lineWidth = 2; // Lebar border
+    ctx.stroke(); // Gambar border pada lingkaran pengejar
+  }
+}
+
 // Fungsi Gambar Permainan
 function gambarPermainan() {
   // Periksa apakah gambar sudah dimuat
@@ -350,15 +680,15 @@ function gambarPermainan() {
   // Periksa waktu diam
   let waktuSekarang = Date.now();
 
-      // Filter rintangan yang sudah mencapai akhir  
-    daftarRintangan = daftarRintangan.filter(rintangan =>   
-        !rintangan.sudahSampaiAkhir  
-    );  
+  // Filter rintangan yang sudah mencapai akhir
+  daftarRintangan = daftarRintangan.filter(
+    (rintangan) => !rintangan.sudahSampaiAkhir
+  );
 
-    daftarRintangan.forEach(rintangan => {  
-        rintangan.update();  
-        rintangan.gambar(ctx);  
-    });  
+  daftarRintangan.forEach((rintangan) => {
+    rintangan.update();
+    rintangan.gambar(ctx);
+  });
 
   // Kondisi untuk status tidur
   if (pemain.kecepatanX === 0 && pemain.kecepatanY === 0 && !sedangTidur) {
@@ -399,6 +729,10 @@ function gambarPermainan() {
     ctx.drawImage(gambarSekarang, posisiX, 0, lebarBackground, canvas.height);
   }
 
+  // Gambar rintangan dan karakter
+  gambarRintangan(ctx);
+  gambarKarakter(ctx); // Gambar karakter dengan border
+
   ctx.restore();
 
   // Gerakkan Pemain
@@ -437,84 +771,83 @@ function loopPermainan() {
   // Mulai gambar permainan
   gambarPermainan();
 }
-// Event Listener Tombol untuk Sentuhan dan Mouse  
-function setupControls() {  
-    const leftButton = document.getElementById("left");  
-    const rightButton = document.getElementById("right");  
-    const upButton = document.getElementById("up");  
+// Event Listener Tombol untuk Sentuhan dan Mouse
+function setupControls() {
+  const leftButton = document.getElementById("left");
+  const rightButton = document.getElementById("right");
+  const upButton = document.getElementById("up");
 
-    // Fungsi untuk start bergerak ke kiri  
-    function startMoveLeft() {  
-        pemain.kecepatanX = -pemain.kecepatan;  
-        pemain.menghadapKanan = false;  
-        waktuTerakhirBergerak = Date.now();  
-        sedangTidur = false;  
-    }  
+  // Fungsi untuk start bergerak ke kiri
+  function startMoveLeft() {
+    pemain.kecepatanX = -pemain.kecepatan;
+    pemain.menghadapKanan = false;
+    waktuTerakhirBergerak = Date.now();
+    sedangTidur = false;
+  }
 
-    // Fungsi untuk start bergerak ke kanan  
-    function startMoveRight() {  
-        pemain.kecepatanX = pemain.kecepatan;  
-        pemain.menghadapKanan = true;  
-        waktuTerakhirBergerak = Date.now();  
-        sedangTidur = false;  
-    }  
+  // Fungsi untuk start bergerak ke kanan
+  function startMoveRight() {
+    pemain.kecepatanX = pemain.kecepatan;
+    pemain.menghadapKanan = true;
+    waktuTerakhirBergerak = Date.now();
+    sedangTidur = false;
+  }
 
-    // Fungsi untuk stop bergerak  
-    function stopMove() {  
-        pemain.kecepatanX = 0;  
-        waktuTerakhirBergerak = Date.now();  
-    }  
+  // Fungsi untuk stop bergerak
+  function stopMove() {
+    pemain.kecepatanX = 0;
+    waktuTerakhirBergerak = Date.now();
+  }
 
-    // Event untuk tombol kiri  
-    leftButton.addEventListener("mousedown", startMoveLeft);  
-    leftButton.addEventListener("touchstart", (e) => {  
-        e.preventDefault(); // Mencegah scroll/zoom  
-        startMoveLeft();  
-    });  
+  // Event untuk tombol kiri
+  leftButton.addEventListener("mousedown", startMoveLeft);
+  leftButton.addEventListener("touchstart", (e) => {
+    e.preventDefault(); // Mencegah scroll/zoom
+    startMoveLeft();
+  });
 
-    // Event untuk tombol kanan  
-    rightButton.addEventListener("mousedown", startMoveRight);  
-    rightButton.addEventListener("touchstart", (e) => {  
-        e.preventDefault();  
-        startMoveRight();  
-    });  
+  // Event untuk tombol kanan
+  rightButton.addEventListener("mousedown", startMoveRight);
+  rightButton.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    startMoveRight();
+  });
 
-    // Event untuk tombol up/lompat  
-    upButton.addEventListener("mousedown", lompat);  
-    upButton.addEventListener("touchstart", (e) => {  
-        e.preventDefault();  
-        lompat();  
-        
-    });  
+  // Event untuk tombol up/lompat
+  upButton.addEventListener("mousedown", lompat);
+  upButton.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    lompat();
+  });
 
-    // Events untuk stop bergerak  
-    document.addEventListener("mouseup", stopMove);  
-    document.addEventListener("touchend", stopMove);  
+  // Events untuk stop bergerak
+  document.addEventListener("mouseup", stopMove);
+  document.addEventListener("touchend", stopMove);
 
-    // Event Listener Keyboard  
-    document.addEventListener("keydown", function (event) {  
-        switch (event.code) {  
-            case "ArrowLeft":  
-                startMoveLeft();  
-                break;  
-            case "ArrowRight":  
-                startMoveRight();  
-                break;  
-            case "Space":  
-            case "ArrowUp":  
-                lompat();  
-                break;  
-        }  
-    });  
+  // Event Listener Keyboard
+  document.addEventListener("keydown", function (event) {
+    switch (event.code) {
+      case "ArrowLeft":
+        startMoveLeft();
+        break;
+      case "ArrowRight":
+        startMoveRight();
+        break;
+      case "Space":
+      case "ArrowUp":
+        lompat();
+        break;
+    }
+  });
 
-    document.addEventListener("keyup", function (event) {  
-        if (event.code === "ArrowLeft" || event.code === "ArrowRight") {  
-            stopMove();  
-        }  
-    });  
-}  
+  document.addEventListener("keyup", function (event) {
+    if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
+      stopMove();
+    }
+  });
+}
 
-// Panggil fungsi setup kontrol saat game dimuat  
-window.addEventListener('load', setupControls);
+// Panggil fungsi setup kontrol saat game dimuat
+window.addEventListener("load", setupControls);
 // Inisialisasi Permainan
 muatGambar();
